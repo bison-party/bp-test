@@ -16,6 +16,10 @@ from another repo is both used in `bs-test` and tested with `bs-test`.
 For this reason, `bs-test` will __NOT__ depend on any other Bison Party repos.
 Whereas, all other Bison Party repos will likely depend on `bs-test`!
 
+__ALSO NOTE__: Each module will have a `test` directory which *tests* the testing logic itself.
+There are no real rules in the `test` directories. For example, `common`'s logic is meant to 
+be portable, but the `common` tests will likely assume posix.
+
 ### `common`
 
 This will be the most abstract and portable layer of `bs-test`.

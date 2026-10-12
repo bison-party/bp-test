@@ -10,6 +10,29 @@
 
 typedef struct bp_test_context_t {
 
+    /**
+     * @brief test context key value map.
+     *
+     * The purpose of this structure is preserve state across test steps.
+     * You may want to store a value in one step, and use it in a following step.
+     *
+     * @warning 
+     *      Keys and values in the map most persist across steps! __NEVER__ store a reference
+     *      to a local variable in `value` or `key`. 
+     */
+    struct {
+        /**
+         * @brief A pointer to a string literal.
+         */
+        const char *key;
+
+        /**
+         * @brief An arbitrary pointer.
+         */
+        void *value;
+    } map[BP_TEST_COMMON_CTX_MAP_CAP];
+
+
 } bp_test_context_t;
 
 typedef int (*bp_test_step_t)(bp_test_context_t *);

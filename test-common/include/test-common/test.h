@@ -1,14 +1,65 @@
 #ifndef BP_TEST_COMMON_TEST_H 
 #define BP_TEST_COMMON_TEST_H
 
+#ifndef BP_TEST_COMMON_SEQ_PHASE_CAP
+/**
+ * @brief The maximum number of steps in a test sequence phase.
+ */
+#define BP_TEST_COMMON_SEQ_PHASE_CAP 16
+#endif
+
 #ifndef BP_TEST_COMMON_CTX_MAP_CAP
 /**
- * @brief static capacity of test context map.
+ * @brief Static capacity of test context map.
  */
 #define BP_TEST_COMMON_CTX_MAP_CAP 32
 #endif
 
-typedef struct bp_test_context_t {
+
+typedef struct bp_test_step_t bp_test_step_t;
+typedef struct bp_test_context_t bp_test_context_t;
+typedef struct bp_test_context_impl_t bp_test_context_impl_t;
+
+typedef struct bp_test_sequence_t bp_test_sequence_t;
+
+// I feel like a test step should likely always be named imo...
+// Yeah, I think you are right here!
+//typedef int (*bp_test_step_t)(bp_test_context_t *);
+
+/**
+ * @brief An ordered set of steps which makes up one complete test.
+ *
+ * A test sequence is broken up into 3 phases: `pre`, `body`, and `post`.
+ * These phases are somewhat arbitrary, but their intended purposes are aligned with their names.
+ * `pre` should do test setup, `body` should perform the significant part of the test, and `post`
+ * should do test cleanup.
+ *
+ * When a test sequence is executing end to end, it can be interrupted in 2 ways.
+ *  1. A test step actually does something fatal which causes the testing environment to crash.
+ *  2. A test step returns a non-zero error code.
+ *
+ * __NOTE__ A test *can* fail even when no testing steps return a non-zero error code. 
+ * Using the test context, there will be a way to log errors without ending the test.
+ * This may be a situation where a there was a soft failure in the test, but cleanup steps
+ * should still execute.
+ */
+struct bp_test_sequence_t {
+    // setup steps -> test steps -> cleanup steps.
+    // I think these should be named tbh...
+    bp_test_step_t pre[BP_TEST_COMMON_SEQ_PHASE_CAP];
+    bp_test_step_t body[BP_TEST_COMMON_SEQ_PHASE_CAP];
+    bp_test_step_t post[BP_TEST_COMMON_SEQ_PHASE_CAP];
+};
+
+struct bp_test_context_impl_t {
+    // We'll need logging I think??
+    // Also, entrance and exit type shi???
+    // Is that necessary though?
+    // Maybe we should define some sort of test sequence first??
+    // Then come back to this context thing IMO?
+};
+
+struct bp_test_context_t {
 
     /**
      * @brief test context key value map.
@@ -31,11 +82,10 @@ typedef struct bp_test_context_t {
          */
         void *value;
     } map[BP_TEST_COMMON_CTX_MAP_CAP];
+    
+    const bp_test_context_impl_t * const impl;
+};
 
-
-} bp_test_context_t;
-
-typedef int (*bp_test_step_t)(bp_test_context_t *);
 
 typedef struct bp_test_impl_t bp_test_impl_t;
 typedef struct bp_test_t bp_test_t;

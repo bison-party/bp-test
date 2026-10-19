@@ -103,7 +103,20 @@ struct bp_test_context_t {
     const size_t step_index;
 
     /**
-     * 
+     * @brief Most fundamental logging function for the test step.
+     *
+     * @param ctx This test context.
+     * @param ll The log level.
+     * @param line The line number of the log call.
+     * @param func The name of the function containing the line call.
+     * @param msg The message to log.
+     *
+     * This function pointer should only exit the test if there is an error actually preforming
+     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
+     * this endpoint should just log the message just like with any other log level.
+     * Wrappers around this endpoint will perform early test exiting logic as needed. 
+     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
+     * Always use helpers!
      */
     void (* const bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
 
@@ -138,19 +151,13 @@ struct bp_test_context_t {
 };
 
 /**
- * @brief logging function for use within a test.
+ * @brief Leave a test step early.
  *
- * __NOTE__ This function should __not__ exit the test. It is just for logging messages, that's it!
- *
- * @param ctx a pointer to the test context.
- * @param ll the log level to output the message as.
- * @param fmt the format string.
+ * @param ctx The test context.
+ * @param status The status to leave with.
  */
-static inline void bp_tc_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    ctx->impl->bp_tc_logf_fp(ctx, ll, fmt, args);
-    va_end(args);
-}
+void bp_tc_leave_step(bp_test_context_t *ctx, bp_test_step_status_t status);
+
+
 
 #endif

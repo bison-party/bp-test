@@ -8,30 +8,30 @@
 
 typedef uint8_t bp_test_log_level_t;
 
-#define BP_T_LL_ERROR 0
-#define BP_T_LL_WARN 1
-#define BP_T_LL_INFO 2
-#define BP_T_LL_DEBUG 3
+#define BP_TEST_LL_ERROR 0
+#define BP_TEST_LL_WARN 1
+#define BP_TEST_LL_INFO 2
+#define BP_TEST_LL_DEBUG 3
 
 /**
- * @brief The result of a single test step
+ * @brief How a test sequence should behave after a step completes.
  */
-typedef uint8_t bp_test_step_status_t;
+typedef uint8_t bp_test_step_action_t;
 
 /**
  * @brief A test step succeeded. Test execution should continue to the next step.
  */
-#define BP_T_SS_CONTINUE 0
+#define BP_TEST_SA_CONTINUE 0
 
 /**
  * @brief A test step succeeded. The test does not need to continue with following steps.
  */
-#define BP_T_SS_EARLY_PASS 1
+#define BP_TEST_SA_EARLY_PASS 1
 
 /**
  * @brief A test step failed. The test should not continue with following steps.
  */
-#define BP_T_SS_ERROR 2
+#define BP_TEST_SA_FAIL 2
 
 typedef struct bp_test_context_t bp_test_context_t;
 
@@ -54,7 +54,7 @@ typedef struct bp_test_step_t {
      * __NOTE__ `cookie` could also be accessed via the `step` pointer within
      * `bp_test_context_t`. It is passed to `bp_test_step` for convenience.
      */
-    bp_test_step_status_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
+    bp_test_step_action_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
 } bp_test_step_t;
 
 typedef struct bp_test_seq_t {
@@ -154,10 +154,60 @@ struct bp_test_context_t {
  * @brief Leave a test step early.
  *
  * @param ctx The test context.
- * @param status The status to leave with.
+ * @param action The action to perform after leaving.
  */
-void bp_tc_leave_step(bp_test_context_t *ctx, bp_test_step_status_t status);
+void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action);
 
+static inline void bp_test_continue(bp_test_context_t *ctx) {
+    bp_test_leave_step(ctx, BP_TEST_SA_CONTINUE);
+}
+
+static inline void bp_test_early_pass(bp_test_context_t *ctx) {
+    bp_test_leave_step(ctx, BP_TEST_SA_EARLY_PASS);
+}
+
+static inline void bp_test_fail(bp_test_context_t *ctx) {
+    bp_test_leave_step(ctx, BP_TEST_SA_FAIL);
+}
+
+/**
+ * @brief vsnprintf implementation to use for logging.
+ *
+ * @param buf A writeable buffer with size at least `n`.
+ * @param n The size of the buffer.
+ * @param fmt The format string to use.
+ * @param vargs The variadic args list.
+ *
+ * This should behave like normal `vsnprintf`. However, I learned that the `libc` formatting 
+ * functions are allowed to use `malloc` under the hood. This is potentially problematic if
+ * working in an environment without `malloc` (Or you are testing `malloc` itself).
+ *
+ * The test logging wrappers will always use this for string formatting.! Implement it however
+ * you see fit!
+ */
+extern void bp_test_vsnprintf(char *buf, size_t n, const char *fmt, va_list vargs);
+
+#ifndef BP_TEST_COMMON_LOG_BUFFER_CAP
+/**
+ * @brief The static buffer size of test logging functions.
+ */
+#define BP_TEST_COMMON_LOG_BUFFER_CAP 256
+#endif
+
+#if BP_TEST_COMMON_LOG_BUFFER_CAP == 0
+#error "BP Test requires non-zero buffer capacity"
+#endif
+
+/**
+ * @brief Test logging function.
+ *
+ * If `ll` is error, this will exit the test after logging.
+ *
+ * @warning
+ *      As the `_` suggests, this should not be called directly. Instead use wrapper macros
+ *      which will correctly paste in `line` and `func`!
+ */
+void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...);
 
 
 #endif

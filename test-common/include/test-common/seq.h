@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <stdint.h>
+#include <stdlib.h> // Just used for `size_t`.
 
 typedef uint8_t bp_test_log_level_t;
 
@@ -33,11 +34,8 @@ typedef uint8_t bp_test_step_status_t;
 #define BP_T_SS_ERROR 2
 
 typedef struct bp_test_context_t bp_test_context_t;
-typedef struct bp_test_context_impl_t bp_test_context_impl_t;
 
-typedef struct bp_test_step_t bp_test_step_t;
-
-struct bp_test_step_t {
+typedef struct bp_test_step_t {
     /**
      * @brief Name of the test step.
      */
@@ -52,25 +50,24 @@ struct bp_test_step_t {
 
     /**
      * @brief The test step behavior. 
+     *
+     * __NOTE__ `cookie` could also be accessed via the `step` pointer within
+     * `bp_test_context_t`. It is passed to `bp_test_step` for convenience.
      */
-    bp_test_step_status_t (*bp_test_step_fp)(bp_test_context_t *ctx, const void *cookie);
-};
+    bp_test_step_status_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
+} bp_test_step_t;
 
+typedef struct bp_test_seq_t {
+    /**
+     * @brief Name of the full test sequence.
+     */
+    const char *name; 
 
-typedef struct bp_test_seq_t bp_test_seq_t;
-
-
-
-#ifndef BP_TEST_COMMON_SEQ_MAX_CAP
-/**
- * @brief Static maximum of the number of steps in a single test sequence.
- */
-#define BP_TEST_COMMON_SEQ_MAX_CAP 16
-#endif
-
-struct bp_test_seq_t {
-
-};
+    /**
+     * @brief A NULL terminated table of pointers to the steps of this sequence.
+     */
+    const bp_test_step_t * const *steps;
+} bp_test_seq_t;
 
 #ifndef BP_TEST_COMMON_CTX_MAP_CAP
 /**
@@ -79,7 +76,37 @@ struct bp_test_seq_t {
 #define BP_TEST_COMMON_CTX_MAP_CAP 32
 #endif
 
+typedef struct bp_test_context_impl_t bp_test_context_impl_t;
+
+/**
+ * @brief The context passed between test steps during test execution.
+ *
+ * A test context is meant to be the *dynamic* state of the test. It provides reflection into
+ * what step is currently being executed, a key value store, and more!
+ */
 struct bp_test_context_t {
+    /**
+     * @brief The test sequence being run.
+     */
+    const bp_test_seq_t * const seq;
+
+    /**
+     * @brief The test step being run.
+     */
+    const bp_test_step_t * const step;
+
+    /**
+     * @brief Test step index for convenience.
+     *
+     * `step = seq->steps[step_index]`
+     */
+    const size_t step_index;
+
+    /**
+     * 
+     */
+    void (* const bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
+
     /**
      * @brief test context key value map.
      *
@@ -108,12 +135,6 @@ struct bp_test_context_t {
      * @brief jump buffer used for exiting test from arbitrary position.
      */
     jmp_buf jb;
-    
-    const bp_test_context_impl_t * const impl;
-};
-
-struct bp_test_context_impl_t {
-    void (*bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
 };
 
 /**

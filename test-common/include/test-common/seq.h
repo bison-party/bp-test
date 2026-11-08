@@ -34,8 +34,14 @@ typedef uint8_t bp_test_step_action_t;
 #define BP_TEST_SA_FAIL 2
 
 typedef struct bp_test_context_t bp_test_context_t;
+typedef struct bp_test_context_impl_t bp_test_context_impl_t;
 
-typedef struct bp_test_step_t {
+typedef struct bp_test_step_t bp_test_step_t;
+typedef struct bp_test_step_impl_t bp_test_step_impl_t;
+
+typedef struct bp_test_seq_t bp_test_seq_t;
+
+struct bp_test_step_t {
     /**
      * @brief Name of the test step.
      */
@@ -49,15 +55,43 @@ typedef struct bp_test_step_t {
     const void *cookie;
 
     /**
-     * @brief The test step behavior. 
+     * @brief Test step implementation.
+     */
+    const bp_test_step_impl_t *impl;
+};
+
+struct bp_test_step_impl_t {
+    /**
+     * @brief Generate a string representation of a cookie.
      *
-     * __NOTE__ `cookie` could also be accessed via the `step` pointer within
-     * `bp_test_context_t`. It is passed to `bp_test_step` for convenience.
+     * This will likely only be used for tests which specify a non-NULL cookie.
+     * Even if this is the case, this endpoint is entirely OPTIONAL!
+     *
+     * @param[in] cookie    The stateless cookie. Always Non-NULL.
+     * @param[in] n         The size of the buffer. This function will write at most `n-1`
+     *                      significant characters. This function will write a NULL terminator
+     *                      after all significant characters. This function will ALWAYS write
+     *                      a NULL terminator, UNLESS `n == 0`. In which case, this function
+     *                      should do nothing.
+     * @param[out] buf      A buffer of size at least `n`. The string representation of `cookie`
+     *                      will be written here. Always Non-NULL.
+     * 
+     * @return Number of characters written to buf excluding the NULL terminator.
+     */
+    size_t (*bp_test_step_cookie_to_str)(const void *cookie, size_t n, char *buf);
+    
+    /**
+     * @brief The test step.
+     *
+     * @param[in] ctx       The test context.
+     * @param[in] cookie    The stateless cookie.
+     *
+     * @return Action code describing what to do after this step completes.
      */
     bp_test_step_action_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
-} bp_test_step_t;
+};
 
-typedef struct bp_test_seq_t {
+struct bp_test_seq_t {
     /**
      * @brief Name of the full test sequence.
      */
@@ -67,7 +101,7 @@ typedef struct bp_test_seq_t {
      * @brief A NULL terminated table of pointers to the steps of this sequence.
      */
     const bp_test_step_t * const *steps;
-} bp_test_seq_t;
+};
 
 #ifndef BP_TEST_COMMON_CTX_MAP_CAP
 /**
@@ -76,7 +110,6 @@ typedef struct bp_test_seq_t {
 #define BP_TEST_COMMON_CTX_MAP_CAP 32
 #endif
 
-typedef struct bp_test_context_impl_t bp_test_context_impl_t;
 
 /**
  * @brief The context passed between test steps during test execution.
@@ -103,22 +136,9 @@ struct bp_test_context_t {
     const size_t step_index;
 
     /**
-     * @brief Most fundamental logging function for the test step.
-     *
-     * @param ctx This test context.
-     * @param ll The log level.
-     * @param line The line number of the log call.
-     * @param func The name of the function containing the line call.
-     * @param msg The message to log.
-     *
-     * This function pointer should only exit the test if there is an error actually preforming
-     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
-     * this endpoint should just log the message just like with any other log level.
-     * Wrappers around this endpoint will perform early test exiting logic as needed. 
-     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
-     * Always use helpers!
+     * @brief Test context implementation.
      */
-    void (* const bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
+    const bp_test_context_impl_t * const impl;
 
     /**
      * @brief test context key value map.
@@ -149,6 +169,52 @@ struct bp_test_context_t {
      */
     jmp_buf jb;
 };
+
+struct bp_test_context_impl_t {
+    // What would this even do exactly?
+    // Send a message back potentially?
+    // I mean, shouldn't a sequence have a unique name if the cookie of a single step is differnet?
+    // If a sequnce is really a sum of its parts that is?
+    // I feel like a test sequence should have a name correct?
+    // Which is what exactly... the sum of the names of the steps I think?
+    // Should a test sequnce have like some sort of hash for identificaiton?
+    // That could be cool also right? I think potentially yes?
+    // Search wouldn't be that slow IMO... Just saying...
+    // I feel like that makes sense IMO.. Test output could be verbose, but also good IMO.
+    // I think this could be pretty cool IMO.. Test output being hasahed could be cool.
+    //
+    // 
+    //
+    void (*bp_test_context_on_step_enter)(bp_test_context_t *ctx);
+
+    // I feel like this is confusing shit...
+    // A sequence is a set of steps... that's all really?
+    // I don't really want this being overly abstract tbh...?
+
+    /**
+     * @brief Most fundamental logging function for the test step.
+     *
+     * This function pointer should only exit the test if there is an error actually preforming
+     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
+     * this endpoint should just log the message just like with any other log level.
+     * Wrappers around this endpoint will perform early test exiting logic as needed. 
+     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
+     * Always use helpers!
+     *
+     * This function is entirely OPTIONAL.
+     *
+     * @param ctx   This test context.
+     * @param ll    The log level.
+     * @param line  The line number of the log call.
+     * @param func  The name of the function containing the line call.
+     * @param msg   The message to log.
+     */
+    void (*bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
+
+    // What about entering/exiting a sequence though? Shouldn't this be
+    void (*bp_test_context_on_step_exit)(bp_test_context_t *ctx);
+};
+
 
 /**
  * @brief Leave a test step early.
@@ -182,7 +248,7 @@ static inline void bp_test_fail(bp_test_context_t *ctx) {
  * functions are allowed to use `malloc` under the hood. This is potentially problematic if
  * working in an environment without `malloc` (Or you are testing `malloc` itself).
  *
- * The test logging wrappers will always use this for string formatting.! Implement it however
+ * The test logging wrappers will always use this for string formatting. Implement it however
  * you see fit!
  */
 extern void bp_test_vsnprintf(char *buf, size_t n, const char *fmt, va_list vargs);
@@ -209,5 +275,23 @@ extern void bp_test_vsnprintf(char *buf, size_t n, const char *fmt, va_list varg
  */
 void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...);
 
+/*
+ * NOTE: Log calls for ALL log levels are ALWAYS compiled in.
+ *
+ * Depending on how the virtual log endpoint is implemented, messaged can be ignored dynamically
+ * instead of at compile time.
+ */
+
+#define BP_TEST_ERROR(ctx, fmt, ...) \
+    _bp_test_logf(ctx, BP_TEST_LL_ERROR, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+#define BP_TEST_WARN(ctx, fmt, ...) \
+    _bp_test_logf(ctx, BP_TEST_LL_WARN, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+#define BP_TEST_INFO(ctx, fmt, ...) \
+    _bp_test_logf(ctx, BP_TEST_LL_INFO, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+#define BP_TEST_DEBUG(ctx, fmt, ...) \
+    _bp_test_logf(ctx, BP_TEST_LL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 #endif

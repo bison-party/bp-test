@@ -4,6 +4,7 @@ void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
     // TODO
 }
 
+/*
 void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
     char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
 
@@ -19,3 +20,4 @@ void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int 
         bp_test_leave_step(ctx, BP_TEST_SA_FAIL);
     }
 }
+*/

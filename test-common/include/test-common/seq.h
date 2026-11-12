@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdlib.h> // Just used for `size_t`.
 
+#include "test-common/cookie.h"
+
 typedef uint8_t bp_test_log_level_t;
 
 #define BP_TEST_LL_ERROR 0
@@ -48,11 +50,19 @@ struct bp_test_step_t {
     const char *name;
 
     /**
-     * @brief Extra test step information to be passed to the test at runtime.
-     *
-     * This is an optional field. When used, it is meant to be a stateless value.
+     * @brief An optional cookie to use for this step.
      */
     const void *cookie;
+
+    /**
+     * @brief An optional cookie implementation for `cookie`.
+     *
+     * If `cookie` is provided, but `cookie_impl` is not, the set of 
+     */
+    const bp_test_cookie_impl_t *cookie_impl;
+
+    // Ok, so now what do we do here??
+    //
 
     /**
      * @brief Test step implementation.
@@ -61,24 +71,6 @@ struct bp_test_step_t {
 };
 
 struct bp_test_step_impl_t {
-    /**
-     * @brief Generate a string representation of a cookie.
-     *
-     * This will likely only be used for tests which specify a non-NULL cookie.
-     * Even if this is the case, this endpoint is entirely OPTIONAL!
-     *
-     * @param[in] cookie    The stateless cookie. Always Non-NULL.
-     * @param[in] n         The size of the buffer. This function will write at most `n-1`
-     *                      significant characters. This function will write a NULL terminator
-     *                      after all significant characters. This function will ALWAYS write
-     *                      a NULL terminator, UNLESS `n == 0`. In which case, this function
-     *                      should do nothing.
-     * @param[out] buf      A buffer of size at least `n`. The string representation of `cookie`
-     *                      will be written here. Always Non-NULL.
-     * 
-     * @return Number of characters written to buf excluding the NULL terminator.
-     */
-    size_t (*bp_test_step_cookie_to_str)(const void *cookie, size_t n, char *buf);
     
     /**
      * @brief The test step.

@@ -2,6 +2,7 @@
 #define BP_TEST_COMMON_COOKIE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h> // Just used for `size_t`.
 
 /**
@@ -36,9 +37,9 @@ typedef struct bp_test_cookie_impl_t {
      *
      * @param[in] cookie    The cookie. Always Non-NULL.
      *
-     * @return A 64-bit hash value derrived from the cookie's semantic value.
+     * @return A 32-bit hash value derrived from the cookie's semantic value.
      */
-    uint64_t (*bp_test_step_cookie_hash)(const void *cookie);
+    uint32_t (*bp_test_step_cookie_hash)(const void *cookie);
 
     /**
      * @brief Equality function for the cookie.

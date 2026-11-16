@@ -39,7 +39,6 @@ typedef struct bp_test_context_t bp_test_context_t;
 typedef struct bp_test_context_impl_t bp_test_context_impl_t;
 
 typedef struct bp_test_step_t bp_test_step_t;
-typedef struct bp_test_step_impl_t bp_test_step_impl_t;
 
 typedef struct bp_test_seq_t bp_test_seq_t;
 
@@ -57,21 +56,12 @@ struct bp_test_step_t {
     /**
      * @brief An optional cookie implementation for `cookie`.
      *
-     * If `cookie` is provided, but `cookie_impl` is not, the set of 
+     * If `cookie` is provided, but `cookie_impl` is not, this is OK! In this case, whichever
+     * endpoints are not provided will be substituted with those found in 
+     * `BP_TEST_COMMON_COOKIE_DEFAULT_IMPL`.
      */
     const bp_test_cookie_impl_t *cookie_impl;
 
-    // Ok, so now what do we do here??
-    //
-
-    /**
-     * @brief Test step implementation.
-     */
-    const bp_test_step_impl_t *impl;
-};
-
-struct bp_test_step_impl_t {
-    
     /**
      * @brief The test step.
      *
@@ -227,23 +217,6 @@ static inline void bp_test_early_pass(bp_test_context_t *ctx) {
 static inline void bp_test_fail(bp_test_context_t *ctx) {
     bp_test_leave_step(ctx, BP_TEST_SA_FAIL);
 }
-
-/**
- * @brief vsnprintf implementation to use for logging.
- *
- * @param buf A writeable buffer with size at least `n`.
- * @param n The size of the buffer.
- * @param fmt The format string to use.
- * @param vargs The variadic args list.
- *
- * This should behave like normal `vsnprintf`. However, I learned that the `libc` formatting 
- * functions are allowed to use `malloc` under the hood. This is potentially problematic if
- * working in an environment without `malloc` (Or you are testing `malloc` itself).
- *
- * The test logging wrappers will always use this for string formatting. Implement it however
- * you see fit!
- */
-extern void bp_test_vsnprintf(char *buf, size_t n, const char *fmt, va_list vargs);
 
 #ifndef BP_TEST_COMMON_LOG_BUFFER_CAP
 /**

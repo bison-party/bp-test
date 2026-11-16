@@ -12,7 +12,8 @@
  * @param[in] fmt   The format string to use.
  * @param[in] vargs The variadic args list.
  *
- * @return Number of characters written to `buf` excluding the NULL terminator.
+ * @return Number of characters written to `buf` excluding the NULL terminator. On error,
+ * a negative value is returned.
  *
  * This should behave like normal `vsnprintf`. However, I learned that the `libc` formatting 
  * functions are allowed to use `malloc` under the hood. This is potentially problematic if

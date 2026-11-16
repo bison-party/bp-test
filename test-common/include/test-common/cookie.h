@@ -56,7 +56,7 @@ typedef struct bp_test_cookie_impl_t {
 } bp_test_cookie_impl_t;
 
 /**
- * @breif The set of default cookie behaviors to use when a cookie implementation (or part
+ * @brief The set of default cookie behaviors to use when a cookie implementation (or part
  * of a cookie implenetaiton) is not provided.
  */
 extern const bp_test_cookie_impl_t BP_TEST_COMMON_COOKIE_DEFAULT_IMPL;

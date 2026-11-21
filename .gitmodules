@@ -1,0 +1,3 @@
+[submodule "deps/bp-build"]
+	path = deps/bp-build
+	url = https://github.com/bison-party/bp-build.git

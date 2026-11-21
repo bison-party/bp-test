@@ -59,6 +59,8 @@ struct bp_test_step_t {
      * If `cookie` is provided, but `cookie_impl` is not, this is OK! In this case, whichever
      * endpoints are not provided will be substituted with those found in 
      * `BP_TEST_COMMON_COOKIE_DEFAULT_IMPL`.
+     *
+     * If `cookie_impl` is provided, `cookie` __MUST__ be Non-NULL.
      */
     const bp_test_cookie_impl_t *cookie_impl;
 
@@ -68,10 +70,36 @@ struct bp_test_step_t {
      * @param[in] ctx       The test context.
      * @param[in] cookie    The stateless cookie.
      *
+     * The actual test step behavior must __ONLY__ either accept no cookie at all, or 
+     * cookies of the same type!
+     *
+     * Formally, if `step_a->bp_test_step == step_b->bp_test_step` then
+     * `step_a->cookie_impl == step_b->cookie_impl`.
+     *
      * @return Action code describing what to do after this step completes.
      */
     bp_test_step_action_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
 };
+
+/**
+ * @brief compute the hash of a test step.
+ *
+ * @param test_step The test step to hash. Always Non-NULL.
+ *
+ * @return A hash value which is a function of the test step's handler and its cookie
+ * (optionally).
+ */
+uint32_t bp_test_step_hash(const bp_test_step_t *test_step);
+
+/**
+ * @brief compare two test steps for equality.
+ *
+ * @param test_step0 A test step. Always Non-NULL.
+ * @param test_step1 Another test step. Always Non-NULL.
+ *
+ * @return `true` iff both test steps are semantically equal.
+ */
+bool bp_test_step_equals(const bp_test_step_t *test_step0, const bp_test_step_t *test_step1);
 
 struct bp_test_seq_t {
     /**

@@ -82,7 +82,7 @@ struct bp_test_step_t {
 };
 
 /**
- * @brief compute the hash of a test step.
+ * @brief Compute the hash of a test step.
  *
  * @param test_step The test step to hash. Always Non-NULL.
  *
@@ -112,6 +112,25 @@ struct bp_test_seq_t {
      */
     const bp_test_step_t * const *steps;
 };
+
+/**
+ * @brief Compute the hash of a test sequence.
+ *
+ * @param test_seq The test sequence to hash. Always Non-NULL.
+ *
+ * @return A combination of the hash value of all steps.
+ */
+uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq);
+
+/**
+ * @brief Compare two test sequences for equality.
+ *
+ * @param test_seq0 A test sequence. Always Non-NULL.
+ * @param test_seq1 Another test sequence. Always Non-NULL.
+ * 
+ * @return Whether or not `test_seq0` is semantically equal to `test_seq1`.
+ */
+bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *test_seq1);
 
 #ifndef BP_TEST_COMMON_CTX_MAP_CAP
 /**

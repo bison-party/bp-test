@@ -53,6 +53,42 @@ bool bp_test_step_equals(const bp_test_step_t *test_step0, const bp_test_step_t 
     return BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.bp_test_step_cookie_equals(test_step0->cookie, test_step1->cookie);
 }
 
+uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq) {
+    uint32_t hv = 23;
+
+    const bp_test_step_t * const *iter = test_seq->steps;
+
+    while (*iter) {
+        hv = (hv * 13) + bp_test_step_hash(*(iter++));
+    }
+
+    return hv;
+}
+
+bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *test_seq1) {
+    if (test_seq0 == test_seq1) {
+        return true;
+    }
+
+    // Note that we don't really care about the test sequence (or step) names.
+
+    if (test_seq0->steps == test_seq1->steps) {
+        return true; 
+    }
+
+    const bp_test_step_t * const *iter0 = test_seq0->steps;
+    const bp_test_step_t * const *iter1 = test_seq1->steps;
+
+    while (*iter0 && *iter1) {
+        if (!bp_test_step_equals(*(iter0++), *(iter1++))) {
+            return false;
+        }
+    }
+
+    return (!*iter0) && (!*iter1);
+}
+
+
 /*
 void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
     // TODO

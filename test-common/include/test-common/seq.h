@@ -139,7 +139,6 @@ bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *tes
 #define BP_TEST_COMMON_CTX_MAP_CAP 32
 #endif
 
-
 /**
  * @brief The context passed between test steps during test execution.
  *
@@ -165,9 +164,24 @@ struct bp_test_context_t {
     const size_t step_index;
 
     /**
-     * @brief Test context implementation.
+     * @brief Most fundamental logging function for the test step.
+     *
+     * This function pointer should only exit the test if there is an error actually preforming
+     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
+     * this endpoint should just log the message just like with any other log level.
+     * Wrappers around this endpoint will perform early test exiting logic as needed. 
+     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
+     * Always use helpers!
+     *
+     * This function is entirely OPTIONAL.
+     *
+     * @param ctx   This test context.
+     * @param ll    The log level.
+     * @param line  The line number of the log call.
+     * @param func  The name of the function containing the line call.
+     * @param msg   The message to log.
      */
-    const bp_test_context_impl_t * const impl;
+    void (* const bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
 
     /**
      * @brief test context key value map.
@@ -198,52 +212,6 @@ struct bp_test_context_t {
      */
     jmp_buf jb;
 };
-
-struct bp_test_context_impl_t {
-    // What would this even do exactly?
-    // Send a message back potentially?
-    // I mean, shouldn't a sequence have a unique name if the cookie of a single step is differnet?
-    // If a sequnce is really a sum of its parts that is?
-    // I feel like a test sequence should have a name correct?
-    // Which is what exactly... the sum of the names of the steps I think?
-    // Should a test sequnce have like some sort of hash for identificaiton?
-    // That could be cool also right? I think potentially yes?
-    // Search wouldn't be that slow IMO... Just saying...
-    // I feel like that makes sense IMO.. Test output could be verbose, but also good IMO.
-    // I think this could be pretty cool IMO.. Test output being hasahed could be cool.
-    //
-    // 
-    //
-    void (*bp_test_context_on_step_enter)(bp_test_context_t *ctx);
-
-    // I feel like this is confusing shit...
-    // A sequence is a set of steps... that's all really?
-    // I don't really want this being overly abstract tbh...?
-
-    /**
-     * @brief Most fundamental logging function for the test step.
-     *
-     * This function pointer should only exit the test if there is an error actually preforming
-     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
-     * this endpoint should just log the message just like with any other log level.
-     * Wrappers around this endpoint will perform early test exiting logic as needed. 
-     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
-     * Always use helpers!
-     *
-     * This function is entirely OPTIONAL.
-     *
-     * @param ctx   This test context.
-     * @param ll    The log level.
-     * @param line  The line number of the log call.
-     * @param func  The name of the function containing the line call.
-     * @param msg   The message to log.
-     */
-    void (*bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
-
-    // What about entering/exiting a sequence though? Shouldn't this be
-    void (*bp_test_context_on_step_exit)(bp_test_context_t *ctx);
-};
-
 
 /**
  * @brief Leave a test step early.

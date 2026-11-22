@@ -67,6 +67,25 @@ void bp_test_context_deinit(bp_test_context_t *ctx) {
     }
 }
 
+void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
+    longjmp(ctx->jb, action);
+}
+
+void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
+    char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
+
+    va_list vargs;
+
+    va_start(vargs, fmt);
+    bp_test_vsnprintf(buf, BP_TEST_COMMON_LOG_BUFFER_CAP, fmt, vargs);
+    va_end(vargs);
+
+    bp_test_context_log(ctx, ll, line, func, buf);
+
+    if (ll == BP_TEST_LOG_LEVEL_ERROR) {
+        bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_FAIL);
+    }
+}
 
 
 /*
@@ -106,24 +125,5 @@ bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *tes
 }
 
 
-void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
-    // TODO
-}
-
-void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
-    char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
-
-    va_list vargs;
-
-    va_start(vargs, fmt);
-    bp_test_vsnprintf(buf, BP_TEST_COMMON_LOG_BUFFER_CAP, fmt, vargs);
-    va_end(vargs);
-
-    ctx->bp_tc_log(ctx, ll, line, func, buf);
-
-    if (ll == BP_TEST_LL_ERROR) {
-        bp_test_leave_step(ctx, BP_TEST_SA_FAIL);
-    }
-}
 */
 

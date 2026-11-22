@@ -6,34 +6,37 @@
 #include <stdint.h>
 #include <stdlib.h> // Just used for `size_t`.
 
+#include "test-common/deps.h"
 #include "test-common/cookie.h"
 
 typedef uint8_t bp_test_log_level_t;
 
-#define BP_TEST_LL_ERROR 0
-#define BP_TEST_LL_WARN 1
-#define BP_TEST_LL_INFO 2
-#define BP_TEST_LL_DEBUG 3
+#define BP_TEST_LOG_LEVEL_ERROR 0
+#define BP_TEST_LOG_LEVEL_WARN 1
+#define BP_TEST_LOG_LEVEL_INFO 2
+#define BP_TEST_LOG_LEVEL_DEBUG 3
 
 /**
  * @brief How a test sequence should behave after a step completes.
+ *
+ * This is an `int` to confirm to return code argument taken by `longjmp`.
  */
-typedef uint8_t bp_test_step_action_t;
+typedef int bp_test_step_action_t;
 
 /**
  * @brief A test step succeeded. Test execution should continue to the next step.
  */
-#define BP_TEST_STEP_ACTION_CONTINUE 0
+#define BP_TEST_STEP_ACTION_CONTINUE 1
 
 /**
  * @brief A test step succeeded. The test does not need to continue with following steps.
  */
-#define BP_TEST_STEP_ACTION_EARLY_PASS 1
+#define BP_TEST_STEP_ACTION_EARLY_PASS 2
 
 /**
  * @brief A test step failed. The test should not continue with following steps.
  */
-#define BP_TEST_STEP_ACTION_FAIL 2
+#define BP_TEST_STEP_ACTION_FAIL 3
 
 typedef struct bp_test_context_t bp_test_context_t;
 
@@ -152,27 +155,27 @@ struct bp_test_context_impl_t {
     /**
      * This function is entirely OPTIONAL.
      *
-     * @see bp_test_context_deinit
+     * @see `bp_test_context_deinit`
      */
     void (*deinit)(bp_test_context_t *ctx);
 
     /**
      * @brief Most fundamental logging function for the test step.
      *
-     * This function pointer should only exit the test if there is an error actually preforming
+     * This function should only exit the test if there is an error actually preforming
      * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
      * this endpoint should just log the message just like with any other log level.
      * Wrappers around this endpoint will perform early test exiting logic as needed. 
      * For this reason, this endpoint should __NEVER__ be called directly from a test step!
-     * Always use helpers!
-     *
+     * Always use wrapper macros!
+     * 
      * This function is entirely OPTIONAL.
      *
-     * @param ctx   This test context.
+     * @param ctx   This test context. Always Non-NULL.
      * @param ll    The log level.
      * @param line  The line number of the log call.
-     * @param func  The name of the function containing the line call.
-     * @param msg   The message to log.
+     * @param func  The name of the function containing the line call. Always Non-NULL.
+     * @param msg   The message to log. Always Non-NULL.
      */
     void (*log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
 };
@@ -195,26 +198,38 @@ void bp_test_context_base_init(bp_test_context_t *ctx, const bp_test_context_imp
  */
 void bp_test_context_deinit(bp_test_context_t *ctx);
 
-
+/**
+ * @brief Declare return point for a test step.
+ *
+ * @param ctx   The context.
+ *
+ * @warning     This is a macro around `setjmp` and thus can only be used in expressions/conditions.
+ */
+#define bp_test_context_setjmp(ctx) \
+    setjmp((ctx)->jb)
 
 /**
  * @brief Leave a test step early.
  *
- * @param ctx The test context.
- * @param action The action to perform after leaving.
+ * @param ctx       The test context.
+ * @param action    The action to perform after leaving.
  */
-void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action);
+void bp_test_context_leave(bp_test_context_t *ctx, bp_test_step_action_t action);
 
-static inline void bp_test_continue(bp_test_context_t *ctx) {
-    bp_test_leave_step(ctx, BP_TEST_SA_CONTINUE);
+static inline void bp_test_context_continue(bp_test_context_t *ctx) {
+    bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_CONTINUE);
 }
 
-static inline void bp_test_early_pass(bp_test_context_t *ctx) {
-    bp_test_leave_step(ctx, BP_TEST_SA_EARLY_PASS);
+static inline void bp_test_context_early_pass(bp_test_context_t *ctx) {
+    bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_EARLY_PASS);
 }
 
-static inline void bp_test_fail(bp_test_context_t *ctx) {
-    bp_test_leave_step(ctx, BP_TEST_SA_FAIL);
+static inline void bp_test_context_fail(bp_test_context_t *ctx) {
+    bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_FAIL);
+}
+
+static inline void bp_test_context_log(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg) {
+    ctx->impl->log(ctx, ll, line, func, msg);
 }
 
 #ifndef BP_TEST_COMMON_LOG_BUFFER_CAP
@@ -229,15 +244,13 @@ static inline void bp_test_fail(bp_test_context_t *ctx) {
 #endif
 
 /**
- * @brief Test logging function.
+ * @brief Variadic wrapper around `bp_test_context_t::log`.
  *
- * If `ll` is error, this will exit the test after logging.
+ * It is advised that you always use helper macros below for logging!
  *
- * @warning
- *      As the `_` suggests, this should not be called directly. Instead use wrapper macros
- *      which will correctly paste in `line` and `func`!
+ * @warning If `ll` is `BP_TEST_LOG_LEVEL_ERROR` this will exit the test early!
  */
-void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...);
+void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...);
 
 /*
  * NOTE: Log calls for ALL log levels are ALWAYS compiled in.
@@ -247,16 +260,22 @@ void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int 
  */
 
 #define BP_TEST_ERROR(ctx, fmt, ...) \
-    _bp_test_logf(ctx, BP_TEST_LL_ERROR, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_ERROR, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 #define BP_TEST_WARN(ctx, fmt, ...) \
-    _bp_test_logf(ctx, BP_TEST_LL_WARN, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_WARN, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 #define BP_TEST_INFO(ctx, fmt, ...) \
-    _bp_test_logf(ctx, BP_TEST_LL_INFO, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_INFO, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 #define BP_TEST_DEBUG(ctx, fmt, ...) \
-    _bp_test_logf(ctx, BP_TEST_LL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
+    bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+// Ok, so maybe now execute a singular test step??
+// Would that be crazy???
+// I think you should be able to execute a single test step locally always I think??
+// Yeah, I think so too tbh...
+
 
 struct bp_test_seq_t {
     /**

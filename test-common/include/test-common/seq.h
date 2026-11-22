@@ -277,6 +277,7 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
 // Yeah, I think so too tbh...
 
 
+
 struct bp_test_seq_t {
     /**
      * @brief Name of the full test sequence.

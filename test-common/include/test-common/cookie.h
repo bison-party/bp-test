@@ -27,7 +27,7 @@ typedef struct bp_test_cookie_impl_t {
      * 
      * @return Number of characters written to buf excluding the NULL terminator.
      */
-    size_t (*bp_test_step_cookie_to_str)(const void *cookie, size_t n, char *buf);
+    size_t (*to_str)(const void *cookie, size_t n, char *buf);
 
     /**
      * @brief Hash function for the cookie.
@@ -39,7 +39,7 @@ typedef struct bp_test_cookie_impl_t {
      *
      * @return A 32-bit hash value derrived from the cookie's semantic value.
      */
-    uint32_t (*bp_test_step_cookie_hash)(const void *cookie);
+    uint32_t (*hash)(const void *cookie);
 
     /**
      * @brief Equality function for the cookie.
@@ -52,7 +52,7 @@ typedef struct bp_test_cookie_impl_t {
      *
      * @return `true` if and only if `cookie0` and `cookie1` are semantically equivelant.
      */
-    bool (*bp_test_step_cookie_equals)(const void *cookie0, const void *cookie1);
+    bool (*equals)(const void *cookie0, const void *cookie1);
 } bp_test_cookie_impl_t;
 
 /**

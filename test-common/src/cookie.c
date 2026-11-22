@@ -35,7 +35,7 @@ static bool default_cookie_equals(const void *cookie0, const void *cookie1) {
 }
 
 const bp_test_cookie_impl_t BP_TEST_COMMON_COOKIE_DEFAULT_IMPL = {
-    .bp_test_step_cookie_to_str = default_cookie_to_str,
-    .bp_test_step_cookie_hash = default_cookie_hash,
-    .bp_test_step_cookie_equals = default_cookie_equals
+    .to_str = default_cookie_to_str,
+    .hash = default_cookie_hash,
+    .equals = default_cookie_equals
 };

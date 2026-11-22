@@ -23,26 +23,24 @@ typedef uint8_t bp_test_step_action_t;
 /**
  * @brief A test step succeeded. Test execution should continue to the next step.
  */
-#define BP_TEST_SA_CONTINUE 0
+#define BP_TEST_STEP_ACTION_CONTINUE 0
 
 /**
  * @brief A test step succeeded. The test does not need to continue with following steps.
  */
-#define BP_TEST_SA_EARLY_PASS 1
+#define BP_TEST_STEP_ACTION_EARLY_PASS 1
 
 /**
  * @brief A test step failed. The test should not continue with following steps.
  */
-#define BP_TEST_SA_FAIL 2
+#define BP_TEST_STEP_ACTION_FAIL 2
 
 typedef struct bp_test_context_t bp_test_context_t;
-typedef struct bp_test_context_impl_t bp_test_context_impl_t;
 
-typedef struct bp_test_step_t bp_test_step_t;
-
-typedef struct bp_test_seq_t bp_test_seq_t;
-
-struct bp_test_step_t {
+/**
+ * @brief A single test step.
+ */
+typedef struct bp_test_step_t {
     /**
      * @brief Name of the test step.
      */
@@ -79,7 +77,7 @@ struct bp_test_step_t {
      * @return Action code describing what to do after this step completes.
      */
     bp_test_step_action_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
-};
+} bp_test_step_t;
 
 /**
  * @brief Compute the hash of a test step.
@@ -101,36 +99,6 @@ uint32_t bp_test_step_hash(const bp_test_step_t *test_step);
  */
 bool bp_test_step_equals(const bp_test_step_t *test_step0, const bp_test_step_t *test_step1);
 
-struct bp_test_seq_t {
-    /**
-     * @brief Name of the full test sequence.
-     */
-    const char *name; 
-
-    /**
-     * @brief A NULL terminated table of pointers to the steps of this sequence.
-     */
-    const bp_test_step_t * const *steps;
-};
-
-/**
- * @brief Compute the hash of a test sequence.
- *
- * @param test_seq The test sequence to hash. Always Non-NULL.
- *
- * @return A combination of the hash value of all steps.
- */
-uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq);
-
-/**
- * @brief Compare two test sequences for equality.
- *
- * @param test_seq0 A test sequence. Always Non-NULL.
- * @param test_seq1 Another test sequence. Always Non-NULL.
- * 
- * @return Whether or not `test_seq0` is semantically equal to `test_seq1`.
- */
-bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *test_seq1);
 
 #ifndef BP_TEST_COMMON_CTX_MAP_CAP
 /**
@@ -139,49 +107,16 @@ bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *tes
 #define BP_TEST_COMMON_CTX_MAP_CAP 32
 #endif
 
+typedef struct bp_test_context_impl_t bp_test_context_impl_t;
+
 /**
  * @brief The context passed between test steps during test execution.
- *
- * A test context is meant to be the *dynamic* state of the test. It provides reflection into
- * what step is currently being executed, a key value store, and more!
  */
 struct bp_test_context_t {
     /**
-     * @brief The test sequence being run.
+     * @brief Test context vtable.
      */
-    const bp_test_seq_t * const seq;
-
-    /**
-     * @brief The test step being run.
-     */
-    const bp_test_step_t * const step;
-
-    /**
-     * @brief Test step index for convenience.
-     *
-     * `step = seq->steps[step_index]`
-     */
-    const size_t step_index;
-
-    /**
-     * @brief Most fundamental logging function for the test step.
-     *
-     * This function pointer should only exit the test if there is an error actually preforming
-     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
-     * this endpoint should just log the message just like with any other log level.
-     * Wrappers around this endpoint will perform early test exiting logic as needed. 
-     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
-     * Always use helpers!
-     *
-     * This function is entirely OPTIONAL.
-     *
-     * @param ctx   This test context.
-     * @param ll    The log level.
-     * @param line  The line number of the log call.
-     * @param func  The name of the function containing the line call.
-     * @param msg   The message to log.
-     */
-    void (* const bp_tc_log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
+    const bp_test_context_impl_t * const impl;
 
     /**
      * @brief test context key value map.
@@ -212,6 +147,55 @@ struct bp_test_context_t {
      */
     jmp_buf jb;
 };
+
+struct bp_test_context_impl_t {
+    /**
+     * This function is entirely OPTIONAL.
+     *
+     * @see bp_test_context_deinit
+     */
+    void (*deinit)(bp_test_context_t *ctx);
+
+    /**
+     * @brief Most fundamental logging function for the test step.
+     *
+     * This function pointer should only exit the test if there is an error actually preforming
+     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
+     * this endpoint should just log the message just like with any other log level.
+     * Wrappers around this endpoint will perform early test exiting logic as needed. 
+     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
+     * Always use helpers!
+     *
+     * This function is entirely OPTIONAL.
+     *
+     * @param ctx   This test context.
+     * @param ll    The log level.
+     * @param line  The line number of the log call.
+     * @param func  The name of the function containing the line call.
+     * @param msg   The message to log.
+     */
+    void (*log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
+};
+
+/**
+ * @brief Initialize the `bp_test_context` base class fields.
+ *
+ * @param ctx   The context to initialize. Always Non-NULL.
+ * @param impl  The context vtable. Always Non-NULL. Must exist unmodified for the life time
+ *              of `ctx`.
+ *
+ * @warning     This leaves the jump buffer `jb` in an undefined state.
+ */
+void bp_test_context_base_init(bp_test_context_t *ctx, const bp_test_context_impl_t *impl);
+
+/**
+ * @brief Deinitialize the context.
+ *
+ * @param ctx   The context to deinitialize. Always Non-NULL.
+ */
+void bp_test_context_deinit(bp_test_context_t *ctx);
+
+
 
 /**
  * @brief Leave a test step early.
@@ -273,5 +257,36 @@ void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int 
 
 #define BP_TEST_DEBUG(ctx, fmt, ...) \
     _bp_test_logf(ctx, BP_TEST_LL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
+
+struct bp_test_seq_t {
+    /**
+     * @brief Name of the full test sequence.
+     */
+    const char *name; 
+
+    /**
+     * @brief A NULL terminated table of pointers to the steps of this sequence.
+     */
+    const bp_test_step_t * const *steps;
+};
+
+/**
+ * @brief Compute the hash of a test sequence.
+ *
+ * @param test_seq The test sequence to hash. Always Non-NULL.
+ *
+ * @return A combination of the hash value of all steps.
+ */
+uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq);
+
+/**
+ * @brief Compare two test sequences for equality.
+ *
+ * @param test_seq0 A test sequence. Always Non-NULL.
+ * @param test_seq1 Another test sequence. Always Non-NULL.
+ * 
+ * @return Whether or not `test_seq0` is semantically equal to `test_seq1`.
+ */
+bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *test_seq1);
 
 #endif

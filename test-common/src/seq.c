@@ -12,10 +12,10 @@ uint32_t bp_test_step_hash(const bp_test_step_t *test_step) {
     if (test_step->cookie) {
         uint32_t cookie_hash;
 
-        if (test_step->cookie_impl->bp_test_step_cookie_hash) {
-            cookie_hash = test_step->cookie_impl->bp_test_step_cookie_hash(test_step->cookie);
+        if (test_step->cookie_impl->hash) {
+            cookie_hash = test_step->cookie_impl->hash(test_step->cookie);
         } else {
-            cookie_hash = BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.bp_test_step_cookie_hash(test_step->cookie);
+            cookie_hash = BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.hash(test_step->cookie);
         }
 
         fhv = (31 * fhv) + cookie_hash;
@@ -46,13 +46,30 @@ bool bp_test_step_equals(const bp_test_step_t *test_step0, const bp_test_step_t 
     // both accept a NULL cookie and a Non-NULL cookie. The handler must ALWAYS accept 
     // two cookies of the same type.
 
-    if (test_step0->cookie_impl && test_step0->cookie_impl->bp_test_step_cookie_equals) {
-        return test_step0->cookie_impl->bp_test_step_cookie_equals(test_step0->cookie, test_step1->cookie);
+    if (test_step0->cookie_impl && test_step0->cookie_impl->equals) {
+        return test_step0->cookie_impl->equals(test_step0->cookie, test_step1->cookie);
     }
 
-    return BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.bp_test_step_cookie_equals(test_step0->cookie, test_step1->cookie);
+    return BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.equals(test_step0->cookie, test_step1->cookie);
 }
 
+void bp_test_context_base_init(bp_test_context_t *ctx, const bp_test_context_impl_t *impl) {
+    *(const bp_test_context_impl_t **)&(ctx->impl) = impl;
+
+    for (size_t i = 0; i < BP_TEST_COMMON_CTX_MAP_CAP; i++) {
+        ctx->map[i].key = NULL;
+    }
+}
+
+void bp_test_context_deinit(bp_test_context_t *ctx) {
+    if (ctx->impl->deinit) {
+        ctx->impl->deinit(ctx);
+    }
+}
+
+
+
+/*
 uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq) {
     uint32_t hv = 23;
 
@@ -89,13 +106,10 @@ bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *tes
 }
 
 
-/*
 void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
     // TODO
 }
-*/
 
-/*
 void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
     char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
 
@@ -112,3 +126,4 @@ void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int 
     }
 }
 */
+

@@ -136,12 +136,14 @@ struct bp_test_context_t {
         /**
          * @brief A pointer to a string literal.
          *
-         * NULL means an empty pair.
+         * Non-NULL if and only if this pair is occupied.
          */
         const char *key;
 
         /**
-         * @brief An arbitrary pointer.
+         * @brief An arbitrary pointer. 
+         *
+         * Non-NULL if and only if this pair is occupied.
          */
         void *value;
     } map[BP_TEST_COMMON_CTX_MAP_CAP];
@@ -216,6 +218,19 @@ void bp_test_context_deinit(bp_test_context_t *ctx);
 bool bp_test_context_put(bp_test_context_t *ctx, const char *key, void *value);
 
 /**
+ * @brief Remove a key from the context's static map.
+ *
+ * @param ctx   The context. Always Non-NULL.
+ * @param key   The key to remove. 
+ *
+ * If `key` is `NULL`, `false` is returned immediately.
+ *
+ * @return `true` if and only if `key` is found in the map. If so, it is gauranteed to be
+ * removed.
+ */
+bool bp_test_context_remove(bp_test_context_t *ctx, const char *key);
+
+/**
  * @brief Get a value from the context's static map.
  *
  * @param ctx   The context. Always Non-NULL.
@@ -224,7 +239,6 @@ bool bp_test_context_put(bp_test_context_t *ctx, const char *key, void *value);
  * @return The value associated with `key`. `NULL` if `key` is not in the map.
  */
 void *bp_test_context_get(bp_test_context_t *ctx, const char *key);
-
 
 /**
  * @brief Declare return point for a test step.
@@ -300,9 +314,7 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
     bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
 
-
-
-struct bp_test_seq_t {
+typedef struct bp_test_seq_t {
     /**
      * @brief Name of the full test sequence.
      */
@@ -312,7 +324,7 @@ struct bp_test_seq_t {
      * @brief A NULL terminated table of pointers to the steps of this sequence.
      */
     const bp_test_step_t * const *steps;
-};
+} bp_test_seq_t;
 
 /**
  * @brief Compute the hash of a test sequence.

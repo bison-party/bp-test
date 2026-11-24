@@ -58,6 +58,7 @@ void bp_test_context_base_init(bp_test_context_t *ctx, const bp_test_context_imp
 
     for (size_t i = 0; i < BP_TEST_COMMON_CTX_MAP_CAP; i++) {
         ctx->map[i].key = NULL;
+        ctx->map[i].value = NULL;
     }
 }
 
@@ -94,6 +95,10 @@ static uint32_t bp_test_context_string_hash(const char *key) {
  * @return `true` if and only if the characters of `key0` and `key1` are equal.
  */
 static bool bp_test_context_string_equals(const char *key0, const char *key1) {
+    if (key0 == key1) {
+        return true;
+    }
+
     const char *iter0 = key0;
     const char *iter1 = key1;
 
@@ -109,11 +114,112 @@ static bool bp_test_context_string_equals(const char *key0, const char *key1) {
     return false;
 }
 
+/*
+ * The test context map will follow a simple linear probing scheme.
+ * There will be no tombstones, removing will backwards shift.
+ */
+
+/**
+ * @brief Lookup a key in the context map.
+ *
+ * @param ctx   The context. Always Non-NULL.
+ * @param key   The key to lookup.
+ *
+ * @return `i` such that `ctx->map[i] streqs key`. If `key` never appears in the map, then
+ * the index of the first empty slot in `key`'s linear chain is returned. If the map is full or 
+ * `key` is `NULL`, `BP_TEST_COMMON_CTX_MAP_CAP` is returned.
+ */
+static size_t bp_test_context_find(bp_test_context_t *ctx, const char *key) {
+    if (!key) {
+        return BP_TEST_COMMON_CTX_MAP_CAP;
+    }
+
+    uint32_t key_hash = bp_test_context_string_hash(key);
+    size_t key_ind = key_hash % BP_TEST_COMMON_CTX_MAP_CAP;
+
+    for (size_t i = key_ind; i < BP_TEST_COMMON_CTX_MAP_CAP; i++) {
+        const char *slot_key = ctx->map[i].key;
+
+        if (!slot_key || bp_test_context_string_equals(key, slot_key)) {
+            return i;
+        }
+    }
+
+    for (size_t i = 0; i < key_ind; i++) {
+        const char *slot_key = ctx->map[i].key;
+
+        if (!slot_key || bp_test_context_string_equals(key, slot_key)) {
+            return i;
+        }
+    }
+
+    return BP_TEST_COMMON_CTX_MAP_CAP;
+}
 
 bool bp_test_context_put(bp_test_context_t *ctx, const char *key, void *value) {
+    if (!key || !value) {
+        return false;
+    }
+
+    size_t key_slot = bp_test_context_find(ctx, key);
+
+    if (key_slot == BP_TEST_COMMON_CTX_MAP_CAP) {
+        return false; // Map is full.
+    }
+
+    ctx->map[key_slot].key = key;
+    ctx->map[key_slot].value = value;
+
+    return true;
+}
+
+bool bp_test_context_remove(bp_test_context_t *ctx, const char *key) {
+    size_t key_slot = bp_test_context_find(ctx, key);
+
+    if (key_slot == BP_TEST_COMMON_CTX_MAP_CAP) {
+        return false; // `key` is NULL or (Map is full and `key` never appears)
+    }
+
+    if (ctx->map[key_slot].key == NULL) {
+        return false; // An empty space is hit before `key` in its corresponding
+                      // linear chain.
+    }
+
+    // `key` was found at `key_slot`, we must shift all following kvps one to the left (cyclically)
+    // until we hit a space or `key_ind`.
+
+    uint32_t key_hash = bp_test_context_string_hash(key);
+    size_t key_ind = key_hash % BP_TEST_COMMON_CTX_MAP_CAP;
+
+    size_t iter = key_slot;
+
+    while (true) {
+        size_t next = (iter + 1) % BP_TEST_COMMON_CTX_MAP_CAP; 
+
+        if (next == key_ind || !(ctx->map[next].key)) {
+            ctx->map[iter].key = NULL;
+            ctx->map[iter].value = NULL;
+
+            return true;
+        } else {
+            ctx->map[iter].key = ctx->map[next].key;
+            ctx->map[iter].value = ctx->map[next].value;
+        }
+    }
 }
 
 void *bp_test_context_get(bp_test_context_t *ctx, const char *key) {
+    size_t key_slot = bp_test_context_find(ctx, key);
+
+    if (key_slot == BP_TEST_COMMON_CTX_MAP_CAP) {
+        return NULL; // `key` is NULL or (Map is full and `key` never appears)
+    }
+
+    // If `key_slot` is occupied `value` is gauranteed to be Non-NULL.
+    // If `key_slot` is empty `value` is gauranteed to be NULL.
+    // Thus, we can return value as is here with no checks.
+
+    return ctx->map[key_slot].value;
 }
 
 void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {

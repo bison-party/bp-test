@@ -2,6 +2,7 @@
 #define BP_TEST_COMMON_SEQ_H
 
 #include <stdarg.h>
+#include <stddef.h>
 #include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h> // Just used for `size_t`.
@@ -199,6 +200,33 @@ void bp_test_context_base_init(bp_test_context_t *ctx, const bp_test_context_imp
 void bp_test_context_deinit(bp_test_context_t *ctx);
 
 /**
+ * @brief Store a key value pair inside the context's static map.
+ *
+ * @param ctx   The context. Always Non-NULL.
+ * @param key   The string key. 
+ * @param value The value.
+ *
+ * If either `key` or `value` are NULL, this function will explicitly ignore the put request.
+ *
+ * @warning `key` and `value` MUST have indefinite lifetimes! A reference to a local variable
+ *          of a single step should NEVER be put into the context map.
+ *
+ * @return True if and only if `key` was put into the map.
+ */
+bool bp_test_context_put(bp_test_context_t *ctx, const char *key, void *value);
+
+/**
+ * @brief Get a value from the context's static map.
+ *
+ * @param ctx   The context. Always Non-NULL.
+ * @param key   The key to lookup.
+ *
+ * @return The value associated with `key`. `NULL` if `key` is not in the map.
+ */
+void *bp_test_context_get(bp_test_context_t *ctx, const char *key);
+
+
+/**
  * @brief Declare return point for a test step.
  *
  * @param ctx   The context.
@@ -271,10 +299,6 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
 #define BP_TEST_DEBUG(ctx, fmt, ...) \
     bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
-// Ok, so maybe now execute a singular test step??
-// Would that be crazy???
-// I think you should be able to execute a single test step locally always I think??
-// Yeah, I think so too tbh...
 
 
 

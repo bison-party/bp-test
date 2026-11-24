@@ -67,6 +67,55 @@ void bp_test_context_deinit(bp_test_context_t *ctx) {
     }
 }
 
+/**
+ * @brief Hash a string.
+ *
+ * @param key   The string to hash. Always Non-NULL.
+ *
+ * @return The hash value.
+ */
+static uint32_t bp_test_context_string_hash(const char *key) {
+    uint32_t hash = 17;
+
+    for (const char *iter = key; *iter != '\0'; iter++) {
+        hash ^= (uint8_t)*iter; 
+        hash *= 13;
+    }
+
+    return hash;
+}
+
+/**
+ * @brief Compare two strings for equality.
+ *
+ * @param key0  One key. Always Non-NULL.
+ * @param key1  Another key. Always Non-NULL.
+ *
+ * @return `true` if and only if the characters of `key0` and `key1` are equal.
+ */
+static bool bp_test_context_string_equals(const char *key0, const char *key1) {
+    const char *iter0 = key0;
+    const char *iter1 = key1;
+
+    while (*iter0 == *iter1) {
+        if (*iter0 == '\0') {
+            return true;
+        }
+
+        iter0++;
+        iter1++;
+    }
+
+    return false;
+}
+
+
+bool bp_test_context_put(bp_test_context_t *ctx, const char *key, void *value) {
+}
+
+void *bp_test_context_get(bp_test_context_t *ctx, const char *key) {
+}
+
 void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
     longjmp(ctx->jb, action);
 }

@@ -91,7 +91,7 @@ typedef struct bp_test_step_t {
  * @return A hash value which is a function of the test step's handler and its cookie
  * (optionally).
  */
-uint32_t bp_test_step_hash(const bp_test_step_t *test_step);
+unsigned int bp_test_step_hash(const bp_test_step_t *test_step);
 
 /**
  * @brief compare two test steps for equality.
@@ -333,7 +333,7 @@ typedef struct bp_test_seq_t {
  *
  * @return A combination of the hash value of all steps.
  */
-uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq);
+unsigned int bp_test_seq_hash(const bp_test_seq_t *test_seq);
 
 /**
  * @brief Compare two test sequences for equality.

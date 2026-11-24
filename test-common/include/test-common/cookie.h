@@ -39,7 +39,7 @@ typedef struct bp_test_cookie_impl_t {
      *
      * @return A 32-bit hash value derrived from the cookie's semantic value.
      */
-    uint32_t (*hash)(const void *cookie);
+    unsigned int (*hash)(const void *cookie);
 
     /**
      * @brief Equality function for the cookie.

@@ -17,7 +17,7 @@ static size_t default_cookie_to_str(const void *cookie, size_t n, char *buf) {
     return (size_t)vsp_rv;
 }
 
-static uint32_t default_cookie_hash(const void *cookie) {
+static unsigned int default_cookie_hash(const void *cookie) {
     uintptr_t hv = (uintptr_t)cookie;
 
     // Generic hash function I found on google.
@@ -25,7 +25,7 @@ static uint32_t default_cookie_hash(const void *cookie) {
     hv = ((hv >> 16) ^ hv) * 0x45d9f3b;
     hv = ((hv >> 16) ^ hv);
 
-    return (uint32_t)hv;
+    return (unsigned int)hv;
 }
 
 static bool default_cookie_equals(const void *cookie0, const void *cookie1) {

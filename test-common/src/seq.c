@@ -1,16 +1,16 @@
 #include "test-common/seq.h"
 
-uint32_t bp_test_step_hash(const bp_test_step_t *test_step) {
+unsigned int bp_test_step_hash(const bp_test_step_t *test_step) {
     uintptr_t hv = (uintptr_t)(test_step->bp_test_step);
 
     hv = ((hv >> 16) ^ hv) * 987821;
     hv = ((hv >> 16) ^ hv) * 987869;
     hv = ((hv >> 16) ^ hv);
 
-    uint32_t fhv = (uint32_t)hv;
+    unsigned int fhv = (unsigned int)hv;
 
     if (test_step->cookie) {
-        uint32_t cookie_hash;
+        unsigned int cookie_hash;
 
         if (test_step->cookie_impl->hash) {
             cookie_hash = test_step->cookie_impl->hash(test_step->cookie);
@@ -75,8 +75,8 @@ void bp_test_context_deinit(bp_test_context_t *ctx) {
  *
  * @return The hash value.
  */
-static uint32_t bp_test_context_string_hash(const char *key) {
-    uint32_t hash = 17;
+static unsigned int bp_test_context_string_hash(const char *key) {
+    unsigned int hash = 17;
 
     for (const char *iter = key; *iter != '\0'; iter++) {
         hash ^= (uint8_t)*iter; 
@@ -134,7 +134,7 @@ static size_t bp_test_context_find(bp_test_context_t *ctx, const char *key) {
         return BP_TEST_COMMON_CTX_MAP_CAP;
     }
 
-    uint32_t key_hash = bp_test_context_string_hash(key);
+    unsigned int key_hash = bp_test_context_string_hash(key);
     size_t key_ind = key_hash % BP_TEST_COMMON_CTX_MAP_CAP;
 
     for (size_t i = key_ind; i < BP_TEST_COMMON_CTX_MAP_CAP; i++) {
@@ -188,7 +188,7 @@ bool bp_test_context_remove(bp_test_context_t *ctx, const char *key) {
     // `key` was found at `key_slot`, we must shift all following kvps one to the left (cyclically)
     // until we hit a space or `key_ind`.
 
-    uint32_t key_hash = bp_test_context_string_hash(key);
+    unsigned int key_hash = bp_test_context_string_hash(key);
     size_t key_ind = key_hash % BP_TEST_COMMON_CTX_MAP_CAP;
 
     size_t iter = key_slot;
@@ -244,8 +244,8 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
 
 
 /*
-uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq) {
-    uint32_t hv = 23;
+unsigned int bp_test_seq_hash(const bp_test_seq_t *test_seq) {
+    unsigned int hv = 23;
 
     const bp_test_step_t * const *iter = test_seq->steps;
 

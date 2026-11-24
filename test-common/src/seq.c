@@ -12,10 +12,10 @@ uint32_t bp_test_step_hash(const bp_test_step_t *test_step) {
     if (test_step->cookie) {
         uint32_t cookie_hash;
 
-        if (test_step->cookie_impl->bp_test_step_cookie_hash) {
-            cookie_hash = test_step->cookie_impl->bp_test_step_cookie_hash(test_step->cookie);
+        if (test_step->cookie_impl->hash) {
+            cookie_hash = test_step->cookie_impl->hash(test_step->cookie);
         } else {
-            cookie_hash = BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.bp_test_step_cookie_hash(test_step->cookie);
+            cookie_hash = BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.hash(test_step->cookie);
         }
 
         fhv = (31 * fhv) + cookie_hash;
@@ -46,13 +46,204 @@ bool bp_test_step_equals(const bp_test_step_t *test_step0, const bp_test_step_t 
     // both accept a NULL cookie and a Non-NULL cookie. The handler must ALWAYS accept 
     // two cookies of the same type.
 
-    if (test_step0->cookie_impl && test_step0->cookie_impl->bp_test_step_cookie_equals) {
-        return test_step0->cookie_impl->bp_test_step_cookie_equals(test_step0->cookie, test_step1->cookie);
+    if (test_step0->cookie_impl && test_step0->cookie_impl->equals) {
+        return test_step0->cookie_impl->equals(test_step0->cookie, test_step1->cookie);
     }
 
-    return BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.bp_test_step_cookie_equals(test_step0->cookie, test_step1->cookie);
+    return BP_TEST_COMMON_COOKIE_DEFAULT_IMPL.equals(test_step0->cookie, test_step1->cookie);
 }
 
+void bp_test_context_base_init(bp_test_context_t *ctx, const bp_test_context_impl_t *impl) {
+    *(const bp_test_context_impl_t **)&(ctx->impl) = impl;
+
+    for (size_t i = 0; i < BP_TEST_COMMON_CTX_MAP_CAP; i++) {
+        ctx->map[i].key = NULL;
+        ctx->map[i].value = NULL;
+    }
+}
+
+void bp_test_context_deinit(bp_test_context_t *ctx) {
+    if (ctx->impl->deinit) {
+        ctx->impl->deinit(ctx);
+    }
+}
+
+/**
+ * @brief Hash a string.
+ *
+ * @param key   The string to hash. Always Non-NULL.
+ *
+ * @return The hash value.
+ */
+static uint32_t bp_test_context_string_hash(const char *key) {
+    uint32_t hash = 17;
+
+    for (const char *iter = key; *iter != '\0'; iter++) {
+        hash ^= (uint8_t)*iter; 
+        hash *= 13;
+    }
+
+    return hash;
+}
+
+/**
+ * @brief Compare two strings for equality.
+ *
+ * @param key0  One key. Always Non-NULL.
+ * @param key1  Another key. Always Non-NULL.
+ *
+ * @return `true` if and only if the characters of `key0` and `key1` are equal.
+ */
+static bool bp_test_context_string_equals(const char *key0, const char *key1) {
+    if (key0 == key1) {
+        return true;
+    }
+
+    const char *iter0 = key0;
+    const char *iter1 = key1;
+
+    while (*iter0 == *iter1) {
+        if (*iter0 == '\0') {
+            return true;
+        }
+
+        iter0++;
+        iter1++;
+    }
+
+    return false;
+}
+
+/*
+ * The test context map will follow a simple linear probing scheme.
+ * There will be no tombstones, removing will backwards shift.
+ */
+
+/**
+ * @brief Lookup a key in the context map.
+ *
+ * @param ctx   The context. Always Non-NULL.
+ * @param key   The key to lookup.
+ *
+ * @return `i` such that `ctx->map[i] streqs key`. If `key` never appears in the map, then
+ * the index of the first empty slot in `key`'s linear chain is returned. If the map is full or 
+ * `key` is `NULL`, `BP_TEST_COMMON_CTX_MAP_CAP` is returned.
+ */
+static size_t bp_test_context_find(bp_test_context_t *ctx, const char *key) {
+    if (!key) {
+        return BP_TEST_COMMON_CTX_MAP_CAP;
+    }
+
+    uint32_t key_hash = bp_test_context_string_hash(key);
+    size_t key_ind = key_hash % BP_TEST_COMMON_CTX_MAP_CAP;
+
+    for (size_t i = key_ind; i < BP_TEST_COMMON_CTX_MAP_CAP; i++) {
+        const char *slot_key = ctx->map[i].key;
+
+        if (!slot_key || bp_test_context_string_equals(key, slot_key)) {
+            return i;
+        }
+    }
+
+    for (size_t i = 0; i < key_ind; i++) {
+        const char *slot_key = ctx->map[i].key;
+
+        if (!slot_key || bp_test_context_string_equals(key, slot_key)) {
+            return i;
+        }
+    }
+
+    return BP_TEST_COMMON_CTX_MAP_CAP;
+}
+
+bool bp_test_context_put(bp_test_context_t *ctx, const char *key, void *value) {
+    if (!key || !value) {
+        return false;
+    }
+
+    size_t key_slot = bp_test_context_find(ctx, key);
+
+    if (key_slot == BP_TEST_COMMON_CTX_MAP_CAP) {
+        return false; // Map is full.
+    }
+
+    ctx->map[key_slot].key = key;
+    ctx->map[key_slot].value = value;
+
+    return true;
+}
+
+bool bp_test_context_remove(bp_test_context_t *ctx, const char *key) {
+    size_t key_slot = bp_test_context_find(ctx, key);
+
+    if (key_slot == BP_TEST_COMMON_CTX_MAP_CAP) {
+        return false; // `key` is NULL or (Map is full and `key` never appears)
+    }
+
+    if (ctx->map[key_slot].key == NULL) {
+        return false; // An empty space is hit before `key` in its corresponding
+                      // linear chain.
+    }
+
+    // `key` was found at `key_slot`, we must shift all following kvps one to the left (cyclically)
+    // until we hit a space or `key_ind`.
+
+    uint32_t key_hash = bp_test_context_string_hash(key);
+    size_t key_ind = key_hash % BP_TEST_COMMON_CTX_MAP_CAP;
+
+    size_t iter = key_slot;
+
+    while (true) {
+        size_t next = (iter + 1) % BP_TEST_COMMON_CTX_MAP_CAP; 
+
+        if (next == key_ind || !(ctx->map[next].key)) {
+            ctx->map[iter].key = NULL;
+            ctx->map[iter].value = NULL;
+
+            return true;
+        } else {
+            ctx->map[iter].key = ctx->map[next].key;
+            ctx->map[iter].value = ctx->map[next].value;
+        }
+    }
+}
+
+void *bp_test_context_get(bp_test_context_t *ctx, const char *key) {
+    size_t key_slot = bp_test_context_find(ctx, key);
+
+    if (key_slot == BP_TEST_COMMON_CTX_MAP_CAP) {
+        return NULL; // `key` is NULL or (Map is full and `key` never appears)
+    }
+
+    // If `key_slot` is occupied `value` is gauranteed to be Non-NULL.
+    // If `key_slot` is empty `value` is gauranteed to be NULL.
+    // Thus, we can return value as is here with no checks.
+
+    return ctx->map[key_slot].value;
+}
+
+void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
+    longjmp(ctx->jb, action);
+}
+
+void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
+    char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
+
+    va_list vargs;
+
+    va_start(vargs, fmt);
+    bp_test_vsnprintf(buf, BP_TEST_COMMON_LOG_BUFFER_CAP, fmt, vargs);
+    va_end(vargs);
+
+    bp_test_context_log(ctx, ll, line, func, buf);
+
+    if (ll == BP_TEST_LOG_LEVEL_ERROR) {
+        bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_FAIL);
+    }
+}
+
+
+/*
 uint32_t bp_test_seq_hash(const bp_test_seq_t *test_seq) {
     uint32_t hv = 23;
 
@@ -89,26 +280,5 @@ bool bp_test_seq_equals(const bp_test_seq_t *test_seq0, const bp_test_seq_t *tes
 }
 
 
-/*
-void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
-    // TODO
-}
 */
 
-/*
-void _bp_test_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
-    char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
-
-    va_list vargs;
-
-    va_start(vargs, fmt);
-    bp_test_vsnprintf(buf, BP_TEST_COMMON_LOG_BUFFER_CAP, fmt, vargs);
-    va_end(vargs);
-
-    ctx->bp_tc_log(ctx, ll, line, func, buf);
-
-    if (ll == BP_TEST_LL_ERROR) {
-        bp_test_leave_step(ctx, BP_TEST_SA_FAIL);
-    }
-}
-*/

@@ -164,14 +164,15 @@ struct bp_test_context_impl_t {
 
     /**
      * @brief Most fundamental logging function for the test step.
-     *
-     * This function should only exit the test if there is an error actually preforming
-     * the log (even in this case, exiting is optional). For example, if `ll` is `BP_T_LL_ERROR`,
-     * this endpoint should just log the message just like with any other log level.
-     * Wrappers around this endpoint will perform early test exiting logic as needed. 
-     * For this reason, this endpoint should __NEVER__ be called directly from a test step!
-     * Always use wrapper macros!
      * 
+     * This handler is just for outputing test information. It should __NEVER__ exit
+     * a test step. For example, if `ll` is `BP_TEST_LOG_LEVEL_ERROR`, this should just
+     * log an error message. Wrappers around this handler will be responsible for exiting
+     * the test when necessary. For this reason, __NEVER__ call this directly. __ALWAYS__
+     * use helpers.
+     *
+     * Errors with logging itself are ultimately ignored. 
+     *
      * This function is entirely OPTIONAL.
      *
      * @param ctx   This test context. Always Non-NULL.
@@ -181,6 +182,27 @@ struct bp_test_context_impl_t {
      * @param msg   The message to log. Always Non-NULL.
      */
     void (*log)(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg);
+
+    /**
+     * @brief Callback which is executed right before a test step is entered.
+     *
+     * This function is entirely OPTIONAL.
+     *
+     * @param ctx   The test context. Alway Non-NULL.
+     * @param step  The step about to be entered. Always Non-NULL.
+     */
+    void (*on_enter_step)(bp_test_context_t *ctx, const bp_test_step_t *step);
+
+
+    /**
+     * @brief Callback which is executed right after a test step is exited.
+     *
+     * This function is entirely OPTIONAL.
+     *
+     * @param ctx   The test context. Alway Non-NULL.
+     * @param step  The step which just exited. Always Non-NULL.
+     */
+    void (*on_exit_step)(bp_test_context_t *ctx, const bp_test_step_t *step);
 };
 
 /**
@@ -270,18 +292,14 @@ static inline void bp_test_context_fail(bp_test_context_t *ctx) {
     bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_FAIL);
 }
 
-static inline void bp_test_context_log(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *msg) {
-    ctx->impl->log(ctx, ll, line, func, msg);
-}
-
-#ifndef BP_TEST_COMMON_LOG_BUFFER_CAP
+#ifndef BP_TEST_COMMON_LOGF_BUFFER_CAP
 /**
  * @brief The static buffer size of test logging functions.
  */
-#define BP_TEST_COMMON_LOG_BUFFER_CAP 256
+#define BP_TEST_COMMON_LOGF_BUFFER_CAP 256
 #endif
 
-#if BP_TEST_COMMON_LOG_BUFFER_CAP == 0
+#if BP_TEST_COMMON_LOGF_BUFFER_CAP == 0
 #error "BP Test requires non-zero buffer capacity"
 #endif
 
@@ -313,6 +331,15 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
 #define BP_TEST_DEBUG(ctx, fmt, ...) \
     bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
+/**
+ * @brief execute a single test step.
+ *
+ * @param step  The test step to execute. Alway Non-NULL.
+ * @param ctx   The test context to pass to the step. Always Non-NULL.
+ *
+ * @return 
+ */
+bp_test_step_action_t bp_test_step_execute(const bp_test_step_t *step, bp_test_context_t *ctx);
 
 typedef struct bp_test_seq_t {
     /**

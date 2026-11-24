@@ -227,15 +227,16 @@ void bp_test_leave_step(bp_test_context_t *ctx, bp_test_step_action_t action) {
 }
 
 void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...) {
-    char buf[BP_TEST_COMMON_LOG_BUFFER_CAP];
+    if (ctx->impl->log) {
+        char buf[BP_TEST_COMMON_LOGF_BUFFER_CAP];
+        va_list vargs;
 
-    va_list vargs;
+        va_start(vargs, fmt);
+        bp_test_vsnprintf(buf, BP_TEST_COMMON_LOGF_BUFFER_CAP, fmt, vargs);
+        va_end(vargs);
 
-    va_start(vargs, fmt);
-    bp_test_vsnprintf(buf, BP_TEST_COMMON_LOG_BUFFER_CAP, fmt, vargs);
-    va_end(vargs);
-
-    bp_test_context_log(ctx, ll, line, func, buf);
+        ctx->impl->log(ctx, ll, line, func, buf);
+    }
 
     if (ll == BP_TEST_LOG_LEVEL_ERROR) {
         bp_test_context_leave(ctx, BP_TEST_STEP_ACTION_FAIL);

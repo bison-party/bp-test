@@ -15,7 +15,7 @@ endif
 GIT_TOP := $(shell git rev-parse --show-toplevel)
 BP_BUILD := $(GIT_TOP)/deps/bp-build
 
-C_SRC_NAMES := deps cookie seq
+C_SRC_NAMES := deps cookie seq logger
 C_TEST_SRC_NAMES := 
 
 CFLAGS := -Wall -Wextra -Wpedantic -Werror

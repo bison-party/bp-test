@@ -10,41 +10,10 @@
 #include "test-common/deps.h"
 #include "test-common/cookie.h"
 
-typedef uint8_t bp_test_log_level_t;
-
-#define BP_TEST_LOG_LEVEL_ERROR 0
-#define BP_TEST_LOG_LEVEL_WARN 1
-#define BP_TEST_LOG_LEVEL_INFO 2
-#define BP_TEST_LOG_LEVEL_DEBUG 3
-
-/**
- * @brief How a test sequence should behave after a step completes.
- *
- * This is an `int` to confirm to return code argument taken by `longjmp`.
- */
-typedef int bp_test_step_action_t;
-
-/**
- * @brief A test step succeeded. Test execution should continue to the next step.
- */
-#define BP_TEST_STEP_ACTION_CONTINUE 1
-
-/**
- * @brief A test step succeeded. The test does not need to continue with following steps.
- */
-#define BP_TEST_STEP_ACTION_EARLY_PASS 2
-
-/**
- * @brief A test step failed. The test should not continue with following steps.
- */
-#define BP_TEST_STEP_ACTION_FAIL 3
-
-typedef struct bp_test_context_t bp_test_context_t;
-
 /**
  * @brief A single test step.
  */
-typedef struct bp_test_step_t {
+struct bp_test_step_t {
     /**
      * @brief Name of the test step.
      */
@@ -81,7 +50,7 @@ typedef struct bp_test_step_t {
      * @return Action code describing what to do after this step completes.
      */
     bp_test_step_action_t (*bp_test_step)(bp_test_context_t *ctx, const void *cookie);
-} bp_test_step_t;
+};
 
 /**
  * @brief Compute the hash of a test step.
@@ -192,7 +161,6 @@ struct bp_test_context_impl_t {
      * @param step  The step about to be entered. Always Non-NULL.
      */
     void (*on_enter_step)(bp_test_context_t *ctx, const bp_test_step_t *step);
-
 
     /**
      * @brief Callback which is executed right after a test step is exited.
@@ -336,6 +304,20 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
 #define BP_TEST_DEBUG(ctx, fmt, ...) \
     bp_test_context_logf(ctx, BP_TEST_LOG_LEVEL_DEBUG, __LINE__, __func__, fmt, ##__VA_ARGS__)
 
+// IDK, this is all kinda fucked up IMO?
+// Ehhh.. I mean, it's not so bad... 
+// There can be some default logging functions maybe?
+// Or maybe a default context?
+// Would that be so bad IMO?
+// Maybe the context should instead *hold* an ouptut helper?
+// This helper need not know anything about the context really?
+// Context this way need not be a base class at all?
+// I think this would be an example of composition vs inheritence.
+// The outputter could decide what to do in certain situations?
+// Context can be entirely concrete then?
+// I actually kinda like that idea...?
+// A test logger? Can exit/enter a step and a sequence? The context need not know too much
+// about the logger's inner workings so much?
 /**
  * @brief execute a single test step.
  *

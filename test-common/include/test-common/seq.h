@@ -199,10 +199,11 @@ struct bp_test_context_impl_t {
      *
      * This function is entirely OPTIONAL.
      *
-     * @param ctx   The test context. Alway Non-NULL.
-     * @param step  The step which just exited. Always Non-NULL.
+     * @param ctx       The test context. Alway Non-NULL.
+     * @param step      The step which just exited. Always Non-NULL.
+     * @param result    The resulting action of the test step.
      */
-    void (*on_exit_step)(bp_test_context_t *ctx, const bp_test_step_t *step);
+    void (*on_exit_step)(bp_test_context_t *ctx, const bp_test_step_t *step, bp_test_step_action_t result);
 };
 
 /**
@@ -275,6 +276,8 @@ void *bp_test_context_get(bp_test_context_t *ctx, const char *key);
 /**
  * @brief Leave a test step early.
  *
+ * This should only ever be called from within a test step!
+ *
  * @param ctx       The test context.
  * @param action    The action to perform after leaving.
  */
@@ -308,6 +311,8 @@ static inline void bp_test_context_fail(bp_test_context_t *ctx) {
  *
  * It is advised that you always use helper macros below for logging!
  *
+ * This should ONLY ever be exercised from within a test step!
+ *
  * @warning If `ll` is `BP_TEST_LOG_LEVEL_ERROR` this will exit the test early!
  */
 void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsigned int line, const char *func, const char *fmt, ...);
@@ -337,10 +342,11 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
  * @param step  The test step to execute. Alway Non-NULL.
  * @param ctx   The test context to pass to the step. Always Non-NULL.
  *
- * @return 
+ * @return The action the step exits with.
  */
 bp_test_step_action_t bp_test_step_execute(const bp_test_step_t *step, bp_test_context_t *ctx);
 
+// I guess some random type shi idk...
 typedef struct bp_test_seq_t {
     /**
      * @brief Name of the full test sequence.

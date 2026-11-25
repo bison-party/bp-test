@@ -243,6 +243,39 @@ void bp_test_context_logf(bp_test_context_t *ctx, bp_test_log_level_t ll, unsign
     }
 }
 
+bp_test_step_action_t bp_test_step_execute(const bp_test_step_t *step, bp_test_context_t *ctx) {
+    if (ctx->impl->on_enter_step) {
+        ctx->impl->on_enter_step(ctx, step);
+    }
+
+    bp_test_step_action_t result;
+
+    switch (bp_test_context_setjmp(ctx)) {
+    case 0: 
+        result = step->bp_test_step(ctx, step->cookie);
+        break;
+
+    case BP_TEST_STEP_ACTION_CONTINUE:
+        result = BP_TEST_STEP_ACTION_CONTINUE;
+        break;
+
+    case BP_TEST_STEP_ACTION_EARLY_PASS:
+        result = BP_TEST_STEP_ACTION_EARLY_PASS;
+        break;
+
+    case BP_TEST_STEP_ACTION_FAIL:
+    default:
+        result = BP_TEST_STEP_ACTION_FAIL;
+        break;
+    }
+
+    if (ctx->impl->on_exit_step) {
+        ctx->impl->on_exit_step(ctx, step, result);    
+    }
+
+    return result;
+}
+
 
 /*
 unsigned int bp_test_seq_hash(const bp_test_seq_t *test_seq) {

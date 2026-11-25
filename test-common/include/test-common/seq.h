@@ -8,6 +8,7 @@
 #include <stdlib.h> // Just used for `size_t`.
 
 #include "test-common/deps.h"
+#include "test-common/logger.h"
 #include "test-common/cookie.h"
 
 /**

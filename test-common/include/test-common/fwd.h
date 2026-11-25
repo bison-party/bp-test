@@ -7,6 +7,7 @@
  * @file Some forward typedefs and constants.
  */
 
+
 /**
  * @brief How a test sequence should behave after a step completes.
  *
@@ -29,10 +30,5 @@ typedef int bp_test_step_action_t;
  */
 #define BP_TEST_STEP_ACTION_FAIL 3
 
-
-typedef struct bp_test_context_t bp_test_context_t;
-typedef struct bp_test_logger_t bp_test_logger_t;
-typedef struct bp_test_step_t bp_test_step_t;
-typedef struct bp_test_seq_t bp_test_seq_t;
 
 #endif

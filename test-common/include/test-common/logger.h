@@ -1,8 +1,8 @@
 #ifndef BP_TEST_COMMON_LOGGER_H
 #define BP_TEST_COMMON_LOGGER_H
 
-#include "test-common/fwd.h"
 #include <stddef.h>
+#include <stdint.h>
 
 typedef uint8_t bp_test_log_level_t;
 
@@ -10,6 +10,10 @@ typedef uint8_t bp_test_log_level_t;
 #define BP_TEST_LOG_LEVEL_WARN 1
 #define BP_TEST_LOG_LEVEL_INFO 2
 #define BP_TEST_LOG_LEVEL_DEBUG 3
+
+typedef struct bp_test_logger_t bp_test_logger_t;
+typedef struct bp_test_step_t bp_test_step_t;
+typedef struct bp_test_seq_t bp_test_seq_t;
 
 typedef struct bp_test_logger_impl_t bp_test_logger_impl_t;
 
